@@ -12,14 +12,13 @@ RUN apk update && \
 # These are needed to compile some Python packages
 RUN apk add --no-cache build-base python3-dev musl-dev linux-headers
 
-# Step 3: Install fabric-ai with verbose output
+# Step 3: Install fabric-ai with verbose output AND the override flag
 # --no-cache-dir is still good practice
-# The '-v' flag provides more detailed logs if pip fails
-RUN pip install -v --no-cache-dir fabric-ai
+# Use --break-system-packages to bypass PEP 668 check inside the container
+RUN pip install -v --no-cache-dir --break-system-packages fabric-ai
 
 # Step 4: Remove build dependencies now that pip install is done
 # We don't need these in the final runtime image
-# Using --virtual in Step 2 wasn't easily compatible with separating RUN steps, so we list them manually
 RUN apk del build-base python3-dev musl-dev linux-headers
 
 # --- User and Data Directory ---
