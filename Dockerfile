@@ -12,10 +12,15 @@ RUN apk update && \
 # These are needed to compile some Python packages
 RUN apk add --no-cache build-base python3-dev musl-dev linux-headers
 
-# Step 3: Install fabric-ai with verbose output AND the override flag
+# Step 3: Install fabric-ai, explicitly setting PyPI index URL
 # --no-cache-dir is still good practice
 # Use --break-system-packages to bypass PEP 668 check inside the container
-RUN pip install -v --no-cache-dir --break-system-packages fabric-ai
+RUN pip install \
+    -v \
+    --no-cache-dir \
+    --break-system-packages \
+    --index-url https://pypi.org/simple/ \
+    fabric-ai
 
 # Step 4: Remove build dependencies now that pip install is done
 # We don't need these in the final runtime image
