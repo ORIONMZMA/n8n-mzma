@@ -1,36 +1,37 @@
 # Use the latest official n8n image (based on Alpine Linux)
 FROM n8nio/n8n:latest
 
-# Switch to root user temporarily to install system packages
+# Switch to root user temporarily to install system packages and the binary
 USER root
 
-# Step 1: Install base runtime dependencies
+# Step 1: Install dependencies needed for download (curl) and potentially by Fabric internally (git, python3 - keep just in case)
+# Removed py3-pip as we are not using pip install
+# Removed build dependencies as we are not compiling
 RUN apk update && \
-    apk add --no-cache python3 py3-pip git
+    apk add --no-cache curl git python3
 
-# Step 2: Install build dependencies separately
-# These are needed to compile some Python packages
-RUN apk add --no-cache build-base python3-dev musl-dev linux-headers
+# Step 2: Download the Fabric binary, place it in a standard location, and make it executable
+# Using the official instructions from the Fabric README for Linux AMD64
+# /usr/local/bin is typically in the PATH
+RUN echo "--- Downloading Fabric binary ---" && \
+    curl -L https://github.com/danielmiessler/fabric/releases/latest/download/fabric-linux-amd64 -o /usr/local/bin/fabric && \
+    chmod +x /usr/local/bin/fabric && \
+    echo "--- Fabric binary downloaded and made executable ---"
 
-# Step 3: Install fabric-ai, explicitly setting PyPI index URL
-# --no-cache-dir is still good practice
-# Use --break-system-packages to bypass PEP 668 check inside the container
-RUN pip install \
-    -v \
-    --no-cache-dir \
-    --break-system-packages \
-    --index-url https://pypi.org/simple/ \
-    fabric-ai
+# Step 3: Verify Fabric installation (Optional but recommended)
+RUN echo "--- Verifying Fabric installation ---" && \
+    fabric --version && \
+    echo "--- Fabric verification complete ---"
 
-# Step 4: Remove build dependencies now that pip install is done
-# We don't need these in the final runtime image
-RUN apk del build-base python3-dev musl-dev linux-headers
+# Step 4: Clean up downloaded packages not strictly needed at runtime (curl can be removed)
+RUN apk del curl
 
 # --- User and Data Directory ---
 # Switch back to the non-root 'node' user that the base n8n image uses
 USER node
 
-# Create the Fabric config directory as the 'node' user
+# Create the Fabric config directory as the 'node' user (still good practice)
+# Note: Fabric might create/use ~/.config/fabric automatically now
 RUN mkdir -p /home/node/.config/fabric
 
 # (Optional but good practice) Explicitly set the working directory
@@ -42,9 +43,8 @@ WORKDIR /home/node
 ENV N8N_USER_FOLDER=/home/node/.n8n
 
 # --- API Key Reminder ---
-# REMINDER: You MUST set the required API keys for Fabric (e.g., OPENAI_API_KEY for Whisper)
-# as environment variables in your Render service configuration.
-# Fabric will automatically detect and use keys like OPENAI_API_KEY, ANTHROPIC_API_KEY etc.
+# REMINDER: You MUST set the required API keys for Fabric (e.g., OPENAI_API_KEY)
+# as environment variables in your Render service configuration. Fabric uses these directly.
 # Example: OPENAI_API_KEY=sk-xxxxxxxxxxx
 
 # The base n8n image already has the correct CMD/ENTRYPOINT to start n8n.
