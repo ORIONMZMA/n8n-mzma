@@ -1,14 +1,14 @@
-# Use the latest official n8n image
+# Use the latest official n8n image (based on Alpine Linux)
 FROM n8nio/n8n:latest
 
 # Switch to root user temporarily to install system packages
 USER root
 
-# Install Python, pip, and git (useful for fabric patterns/updates)
-# Clean up apt cache afterwards to keep image size down
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends python3 python3-pip git && \
-    rm -rf /var/lib/apt/lists/*
+# Use Alpine's package manager 'apk'
+# Update index, install Python3, pip for Python3, and git
+# --no-cache installs and cleans cache in one step to keep image small
+RUN apk update && \
+    apk add --no-cache python3 py3-pip git
 
 # Install the latest version of fabric-ai using pip
 # --no-cache-dir keeps image smaller
@@ -36,5 +36,5 @@ ENV N8N_USER_FOLDER=/home/node/.n8n
 # Fabric will automatically detect and use keys like OPENAI_API_KEY, ANTHROPIC_API_KEY etc.
 # Example: OPENAI_API_KEY=sk-xxxxxxxxxxx
 
-# The base n8n image already has the correct CMD/ENTRYPOINT to start nn8n.
+# The base n8n image already has the correct CMD/ENTRYPOINT to start n8n.
 # We don't need to specify it again.
