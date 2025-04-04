@@ -4,20 +4,23 @@ FROM n8nio/n8n:latest
 # Switch to root user temporarily to install system packages
 USER root
 
-# Use Alpine's package manager 'apk'
-# Update index, install Python3, pip for Python3, and git
-# Also install build dependencies needed for some pip packages
-# Use a virtual package (.build-deps) to easily remove build deps later in the same layer
+# Step 1: Install base runtime dependencies
 RUN apk update && \
-    apk add --no-cache python3 py3-pip git && \
-    apk add --virtual .build-deps build-base python3-dev musl-dev linux-headers && \
-    \
-    # Install the latest version of fabric-ai using pip
-    # --no-cache-dir keeps image smaller, happens during pip install
-    pip install --no-cache-dir fabric-ai && \
-    \
-    # Remove build dependencies now that pip install is done to keep image lean
-    apk del .build-deps
+    apk add --no-cache python3 py3-pip git
+
+# Step 2: Install build dependencies separately
+# These are needed to compile some Python packages
+RUN apk add --no-cache build-base python3-dev musl-dev linux-headers
+
+# Step 3: Install fabric-ai with verbose output
+# --no-cache-dir is still good practice
+# The '-v' flag provides more detailed logs if pip fails
+RUN pip install -v --no-cache-dir fabric-ai
+
+# Step 4: Remove build dependencies now that pip install is done
+# We don't need these in the final runtime image
+# Using --virtual in Step 2 wasn't easily compatible with separating RUN steps, so we list them manually
+RUN apk del build-base python3-dev musl-dev linux-headers
 
 # --- User and Data Directory ---
 # Switch back to the non-root 'node' user that the base n8n image uses
