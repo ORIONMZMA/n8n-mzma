@@ -1,20 +1,19 @@
 # Use the latest official n8n image as it has Python and our dependencies installed
-# Alternatively, could switch to python:3.11-alpine and add apk steps for git, curl, ffmpeg, yt-dlp
 FROM n8nio/n8n:latest
 
 # Switch to root user temporarily
 USER root
 
 # Ensure essential tools and potential Fabric dependencies are present
-# (Keeping ffmpeg/yt-dlp just in case, remove if absolutely sure Fabric never uses them)
+# ADDED: py3-flask (to install Flask via apk)
+# REMOVED: py3-pip (no longer needed for installing Flask)
+# Kept ffmpeg/yt-dlp cleanup from previous suggestion (remove if you haven't already)
 RUN apk update && \
     apk add --no-cache \
         git \
         python3 \
-        ffmpeg \
-        yt-dlp \
         curl \
-        py3-pip && \
+        py3-flask && \
     rm -rf /var/cache/apk/*
 
 # Download and install Fabric binary (same as before)
@@ -26,9 +25,10 @@ RUN echo "--- Downloading Fabric binary ---" && \
 # Set up the working directory for our app
 WORKDIR /app
 
-# Copy the requirements file and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# --- Requirements installation REMOVED ---
+# We now install Flask via apk, so these lines are no longer needed:
+# COPY requirements.txt .
+# RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the Flask application code
 COPY app.py .
@@ -51,4 +51,5 @@ EXPOSE 5000
 # as environment variables in your Railway service configuration.
 
 # Default command to run the Flask web server
+# This remains the same, as py3-flask installs into the default python path
 CMD ["python", "app.py"]
