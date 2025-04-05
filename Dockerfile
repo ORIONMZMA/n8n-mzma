@@ -1,68 +1,69 @@
-# Use the latest official n8n image as it has Python and our dependencies installed
+# Use the latest official n8n image (based on Alpine Linux)
 FROM n8nio/n8n:latest
 
-# Switch to root user temporarily
+# Switch to root user temporarily to install system packages and the binary
 USER root
 
-# Ensure essential tools and potential Fabric dependencies are present
+# Step 1: Install dependencies
+# - git, python3: Potentially needed by some Fabric patterns or underlying processes.
+# - ffmpeg, yt-dlp: Required by Fabric patterns that process video/audio (like YouTube transcription).
+# - curl: Kept for downloading binary, testing network connectivity, and potentially used by some patterns.
 RUN apk update && \
     apk add --no-cache \
         git \
         python3 \
-        curl \
-        py3-flask && \
-    rm -rf /var/cache/apk/*
+        ffmpeg \
+        yt-dlp \
+        curl
 
-# --- Verify python3 location during build ---
-RUN echo "--- Verifying python3 path (build time) ---" && which python3
-
-# Download and install Fabric binary (same as before)
+# Step 2: Download the Fabric binary, place it in a standard location, and make it executable
 RUN echo "--- Downloading Fabric binary ---" && \
     curl -L https://github.com/danielmiessler/fabric/releases/latest/download/fabric-linux-amd64 -o /usr/local/bin/fabric && \
     chmod +x /usr/local/bin/fabric && \
-    echo "--- Fabric binary downloaded ---"
+    echo "--- Fabric binary downloaded and made executable ---"
 
-# Set up the working directory for our app
-WORKDIR /app
+# Step 3: Copy and prepare the wrapper script to handle non-interactive execution
+# Assumes 'fabric-wrapper.sh' is in the same directory as the Dockerfile during build
+COPY fabric-wrapper.sh /usr/local/bin/fabric-n8n
+RUN chmod +x /usr/local/bin/fabric-n8n
 
-# Copy the Flask application code
-COPY app.py .
+# Step 4: Verify installations (Optional but recommended)
+# Testing the wrapper and other key dependencies
+RUN echo "--- Verifying installations ---" && \
+    echo "Testing Fabric wrapper:" && \
+    fabric-n8n --version && \
+    echo "Testing curl:" && \
+    curl --version && \
+    echo "Testing ffmpeg:" && \
+    ffmpeg -version && \
+    echo "Testing yt-dlp:" && \
+    yt-dlp --version && \
+    echo "--- Verification complete ---"
 
-# Create a non-root user to run the application (good practice)
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-RUN chown -R appuser:appgroup /app
-# Ensure Fabric config dir exists and is owned by appuser (if fabric needs it)
-RUN mkdir -p /home/appuser/.config/fabric && chown -R appuser:appgroup /home/appuser/.config
+# NOTE: We are NOT removing curl, ffmpeg, yt-dlp etc. in a cleanup step
+# as they might be needed at runtime by Fabric patterns or for debugging.
 
-# Switch to the non-root user
-USER appuser
+# --- User and Data Directory ---
+# Switch back to the non-root 'node' user that the base n8n image uses
+USER node
 
-# Inform Docker that the container listens on port 5000 (Flask default)
-EXPOSE 5000
+# Create the Fabric config directory as the 'node' user (still good practice)
+# Fabric might create/use ~/.config/fabric automatically now
+RUN mkdir -p /home/node/.config/fabric
+
+# (Optional but good practice) Explicitly set the working directory
+WORKDIR /home/node
+
+# (Required for persistence) Define where n8n data should be stored INSIDE the container.
+# Render will mount your persistent disk to this path.
+# Ensure your Render Disk mount path is set to match this.
+ENV N8N_USER_FOLDER=/home/node/.n8n
 
 # --- API Key Reminder ---
-# REMINDER: You MUST set API keys (e.g., OPENAI_API_KEY)
-# as environment variables in your Railway service configuration.
+# REMINDER: You MUST set the required API keys for Fabric (e.g., OPENAI_API_KEY)
+# as environment variables in your Render service configuration. Fabric uses these directly.
+# Example: OPENAI_API_KEY=sk-xxxxxxxxxxx
 
-# --- ADDED: Override base image's entrypoint ---
-ENTRYPOINT ["/bin/sh"]
+# The base n8n image already has the correct CMD/ENTRYPOINT to start n8n.
+# We don't need to specify it again.
 
-# --- DIAGNOSTIC CMD ---
-# This CMD will now be passed as arguments to the ENTRYPOINT ("/bin/sh")
-CMD ["-c", "echo '--- Runtime CMD ---'; \
-                 echo 'User: $(whoami)'; \
-                 echo 'UID: $(id -u)'; \
-                 echo 'GID: $(id -g)'; \
-                 echo 'Workdir: $(pwd)'; \
-                 echo '--- PATH ---'; \
-                 echo $PATH; \
-                 echo '--- Listing /usr/bin ---'; \
-                 ls -l /usr/bin/python*; \
-                 echo '--- Attempting python3 version ---'; \
-                 /usr/bin/python3 --version || echo 'Python3 version failed'; \
-                 echo '--- Sleeping ---'; \
-                 sleep 30"]
-
-# Original command (commented out for now):
-# ENTRYPOINT ["/usr/bin/python3"]
-# CMD ["app.py"]
