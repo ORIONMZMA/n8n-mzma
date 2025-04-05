@@ -5,9 +5,6 @@ FROM n8nio/n8n:latest
 USER root
 
 # Ensure essential tools and potential Fabric dependencies are present
-# ADDED: py3-flask (to install Flask via apk)
-# REMOVED: py3-pip (no longer needed for installing Flask)
-# Kept ffmpeg/yt-dlp cleanup from previous suggestion (remove if you haven't already)
 RUN apk update && \
     apk add --no-cache \
         git \
@@ -25,11 +22,6 @@ RUN echo "--- Downloading Fabric binary ---" && \
 # Set up the working directory for our app
 WORKDIR /app
 
-# --- Requirements installation REMOVED ---
-# We now install Flask via apk, so these lines are no longer needed:
-# COPY requirements.txt .
-# RUN pip install --no-cache-dir -r requirements.txt
-
 # Copy the Flask application code
 COPY app.py .
 
@@ -43,7 +35,6 @@ RUN mkdir -p /home/appuser/.config/fabric && chown -R appuser:appgroup /home/app
 USER appuser
 
 # Inform Docker that the container listens on port 5000 (Flask default)
-# Railway uses the PORT environment variable, which app.py reads.
 EXPOSE 5000
 
 # --- API Key Reminder ---
@@ -51,5 +42,5 @@ EXPOSE 5000
 # as environment variables in your Railway service configuration.
 
 # Default command to run the Flask web server
-# This remains the same, as py3-flask installs into the default python path
-CMD ["python", "app.py"]
+# CHANGE: Use python3 instead of python
+CMD ["python3", "app.py"]
