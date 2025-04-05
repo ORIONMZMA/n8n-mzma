@@ -44,9 +44,12 @@ EXPOSE 5000
 # REMINDER: You MUST set API keys (e.g., OPENAI_API_KEY)
 # as environment variables in your Railway service configuration.
 
+# --- ADDED: Override base image's entrypoint ---
+ENTRYPOINT ["/bin/sh"]
+
 # --- DIAGNOSTIC CMD ---
-# Replace the original CMD with this block to see runtime environment
-CMD ["sh", "-c", "echo '--- Runtime CMD ---'; \
+# This CMD will now be passed as arguments to the ENTRYPOINT ("/bin/sh")
+CMD ["-c", "echo '--- Runtime CMD ---'; \
                  echo 'User: $(whoami)'; \
                  echo 'UID: $(id -u)'; \
                  echo 'GID: $(id -g)'; \
@@ -60,5 +63,6 @@ CMD ["sh", "-c", "echo '--- Runtime CMD ---'; \
                  echo '--- Sleeping ---'; \
                  sleep 30"]
 
-# Original command (commented out):
-# CMD ["/usr/bin/python3", "app.py"]
+# Original command (commented out for now):
+# ENTRYPOINT ["/usr/bin/python3"]
+# CMD ["app.py"]
