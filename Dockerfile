@@ -13,6 +13,9 @@ RUN apk update && \
         py3-flask && \
     rm -rf /var/cache/apk/*
 
+# --- ADDED: Verify python3 location during build ---
+RUN echo "--- Verifying python3 path ---" && which python3
+
 # Download and install Fabric binary (same as before)
 RUN echo "--- Downloading Fabric binary ---" && \
     curl -L https://github.com/danielmiessler/fabric/releases/latest/download/fabric-linux-amd64 -o /usr/local/bin/fabric && \
@@ -42,5 +45,5 @@ EXPOSE 5000
 # as environment variables in your Railway service configuration.
 
 # Default command to run the Flask web server
-# CHANGE: Use python3 instead of python
-CMD ["python3", "app.py"]
+# CHANGE: Use the absolute path to python3
+CMD ["/usr/bin/python3", "app.py"]
