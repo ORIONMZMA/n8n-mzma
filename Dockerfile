@@ -13,8 +13,8 @@ RUN apk update && \
         py3-flask && \
     rm -rf /var/cache/apk/*
 
-# --- ADDED: Verify python3 location during build ---
-RUN echo "--- Verifying python3 path ---" && which python3
+# --- Verify python3 location during build ---
+RUN echo "--- Verifying python3 path (build time) ---" && which python3
 
 # Download and install Fabric binary (same as before)
 RUN echo "--- Downloading Fabric binary ---" && \
@@ -44,6 +44,21 @@ EXPOSE 5000
 # REMINDER: You MUST set API keys (e.g., OPENAI_API_KEY)
 # as environment variables in your Railway service configuration.
 
-# Default command to run the Flask web server
-# CHANGE: Use the absolute path to python3
-CMD ["/usr/bin/python3", "app.py"]
+# --- DIAGNOSTIC CMD ---
+# Replace the original CMD with this block to see runtime environment
+CMD ["sh", "-c", "echo '--- Runtime CMD ---'; \
+                 echo 'User: $(whoami)'; \
+                 echo 'UID: $(id -u)'; \
+                 echo 'GID: $(id -g)'; \
+                 echo 'Workdir: $(pwd)'; \
+                 echo '--- PATH ---'; \
+                 echo $PATH; \
+                 echo '--- Listing /usr/bin ---'; \
+                 ls -l /usr/bin/python*; \
+                 echo '--- Attempting python3 version ---'; \
+                 /usr/bin/python3 --version || echo 'Python3 version failed'; \
+                 echo '--- Sleeping ---'; \
+                 sleep 30"]
+
+# Original command (commented out):
+# CMD ["/usr/bin/python3", "app.py"]
